@@ -21,7 +21,6 @@ def my_screening_unit_generator():
     while True:
         yield {"text": "SCREENING UNIT: Press the red button", "is_screen": True}
 
-
 def validate_screening_unit(unit: Unit):
     agent = unit.get_assigned_agent()
     if agent is not None:
@@ -42,15 +41,19 @@ def handle_onboarding(onboarding_data):
         return True
     return False
 
+def slow_generator():
+    import time
+    i=0
+    while(True):
+        i+=1
+        time.sleep(3)
+        yield {"text": f"This is assignment {i}"}
 
 @task_script(default_config_file="example.yaml")
 def main(operator: Operator, cfg: DictConfig) -> None:
     is_using_screening_units = cfg.mephisto.blueprint["use_screening_task"]
     shared_state = SharedStaticTaskState(
-        static_task_data=[
-            {"text": "This text is good text!"},
-            {"text": "This text is bad text!"},
-        ],
+        static_task_data=slow_generator(),
         validate_onboarding=handle_onboarding,
     )
 
