@@ -52,14 +52,22 @@ def url_safe_string(in_string: str) -> str:
     return re.sub("[^0-9a-zA-Z-]+", "", hyphenated)
 
 
+def get_full_domain(args: DictConfig) -> str:
+    with open(DEFAULT_FALLBACK_FILE, "r") as fallback_detail_file:
+        fallback_details = json.load(fallback_detail_file)
+
+    subdomain = url_safe_string(args.architect.subdomain)
+    root_domain = fallback_details["domain"]
+    full_domain = f"{subdomain}.{root_domain}"
+    return full_domain
+
+
 @dataclass
 class EC2ArchitectArgs(ArchitectArgs):
     """Additional arguments for configuring a heroku architect"""
 
     _architect_type: str = ARCHITECT_TYPE
-    instance_type: str = field(
-        default="t2.micro", metadata={"help": "Instance type to run router"}
-    )
+    instance_type: str = field(default="t2.micro", metadata={"help": "Instance type to run router"})
     subdomain: str = field(
         default="${mephisto.task.task_name}",
         metadata={"help": "Subdomain name for routing"},
@@ -112,9 +120,7 @@ class EC2Architect(Architect):
         self.build_dir = build_dir_root
         self.server_detail_path = self._get_detail_path(self.subdomain)
 
-        self.session = boto3.Session(
-            profile_name=self.profile_name, region_name="us-east-2"
-        )
+        self.session = boto3.Session(profile_name=self.profile_name, region_name="us-east-2")
 
         self.server_dir: Optional[str] = None
         self.server_id: Optional[str] = None
@@ -225,17 +231,13 @@ class EC2Architect(Architect):
             assert key in fallback_details, f"Fallback file missing required key {key}"
 
         session = boto3.Session(profile_name=profile_name, region_name="us-east-2")
-        is_new_rule = ec2_helpers.rule_is_new(
-            session, subdomain, fallback_details["listener_arn"]
-        )
+        is_new_rule = ec2_helpers.rule_is_new(session, subdomain, fallback_details["listener_arn"])
         if args.architect._deploy_type in ["retain", "standard"]:
             assert (
                 is_new_rule
             ), "Rule was not new, existing subdomain found registered to the listener. Check on AWS."
         else:
-            assert (
-                not is_new_rule
-            ), "Rule did not exist, Clean up and redeploy a new retain server."
+            assert not is_new_rule, "Rule did not exist, Clean up and redeploy a new retain server."
 
     def __get_build_directory(self) -> str:
         """
@@ -264,9 +266,7 @@ class EC2Architect(Architect):
         setup_path = os.path.join(SCRIPTS_DIRECTORY, self.server_type)
         setup_dest = os.path.join(server_build_root, "setup")
         shutil.copytree(setup_path, setup_dest)
-        possible_node_modules = os.path.join(
-            server_build_root, "router", "node_modules"
-        )
+        possible_node_modules = os.path.join(server_build_root, "router", "node_modules")
         if os.path.exists(possible_node_modules):
             shutil.rmtree(possible_node_modules)
         return server_dir
@@ -326,7 +326,9 @@ class EC2Architect(Architect):
                 server_dir,
             )
 
-        return f"https://{self.full_domain}"
+        url = f"https://{self.full_domain}"
+        print(f"EC2: Deployed server at {url}")
+        return url
 
     def __delete_ec2_server(self):
         """
