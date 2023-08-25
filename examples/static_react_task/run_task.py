@@ -41,19 +41,20 @@ def handle_onboarding(onboarding_data):
         return True
     return False
 
-def slow_generator():
+def bursty_generator():
     import time
     i=0
     while(True):
-        i+=1
-        time.sleep(3)
-        yield {"text": f"This is assignment {i}"}
+        for k in range(10):
+            i+=1
+            yield {"text": f"This is assignment {i}"}
+        time.sleep(1)
 
 @task_script(default_config_file="example.yaml")
 def main(operator: Operator, cfg: DictConfig) -> None:
     is_using_screening_units = cfg.mephisto.blueprint["use_screening_task"]
     shared_state = SharedStaticTaskState(
-        static_task_data=slow_generator(),
+        static_task_data=bursty_generator(),
         validate_onboarding=handle_onboarding,
     )
 
